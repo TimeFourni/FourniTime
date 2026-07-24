@@ -267,7 +267,6 @@
             color: var(--warning-amber);
         }
 
-        /* BOUTONS DE MODIFICATION ET SUPPRESSION VISIBLES EN MODE STUDIO */
         .cat-action-btn {
             display: none !important;
             background: rgba(255, 255, 255, 0.05);
@@ -1034,7 +1033,7 @@
             allRow.innerHTML = `<button class="filter-btn ${currentCategory === 'all' ? 'active' : ''}" onclick="setCategory('all', this)"><span>Tous les produits</span><span>➔</span></button>`;
             navContainer.appendChild(allRow);
 
-            // Génération des boutons de catégorie + Boutons d'édition & suppression
+            // Génération des boutons de catégorie
             categories.forEach(cat => {
                 const row = document.createElement('div');
                 row.className = 'cat-item-row';
@@ -1212,6 +1211,7 @@
             filterProducts();
         }
 
+        // BASCLULER UN PRODUIT EN BROUILLON OU PUBLIÉ (SYNCHRONISÉ DANS SUPABASE)
         async function toggleDraft(id) {
             const prod = products.find(p => String(p.id) === String(id));
             if (!prod) return;
@@ -1223,7 +1223,18 @@
 
         async function updateProductInDb(prod) {
             try {
-                await supabaseClient.from('products').update(prod).eq('id', prod.id);
+                await supabaseClient.from('products').update({
+                    name: prod.name,
+                    category: prod.category,
+                    price: prod.price,
+                    desc: prod.desc,
+                    sizeType: prod.sizeType,
+                    emoji: prod.emoji,
+                    image: prod.image,
+                    pinned: prod.pinned,
+                    draft: prod.draft,
+                    suggestions: prod.suggestions
+                }).eq('id', prod.id);
             } catch(e) {
                 console.warn("Mise à jour Supabase échouée, enregistrement local", e);
             }
