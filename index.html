@@ -903,12 +903,8 @@
             { id: "electronique", label: "Électronique" }
         ];
 
-        if (!localStorage.getItem('fourni_market_categories')) {
-            localStorage.setItem('fourni_market_categories', JSON.stringify(defaultCategories));
-        }
-
         let products = [];
-        let categories = JSON.parse(localStorage.getItem('fourni_market_categories'));
+        let categories = [];
         let cart = JSON.parse(localStorage.getItem('fourni_market_cart')) || [];
         
         let currentCategory = 'all';
@@ -920,7 +916,46 @@
 
         emailjs.init(EMAILJS_PUBLIC_KEY);
 
+        // --- SYNCHRONISATION EN TEMPS RÉEL VIA SUPABASE ---
         async function fetchProducts() {
+            await fetchCategoriesFromDb();
+            await fetchProductsFromDb();
+
+            // S'abonner aux changements en temps réel sur la table products
+            supabaseClient
+                .channel('realtime_products')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, async () => {
+                    await fetchProductsFromDb();
+                })
+                .subscribe();
+
+            // S'abonner aux changements en temps réel sur la table categories
+            supabaseClient
+                .channel('realtime_categories')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, async () => {
+                    await fetchCategoriesFromDb();
+                })
+                .subscribe();
+        }
+
+        async function fetchCategoriesFromDb() {
+            try {
+                const { data, error } = await supabaseClient.from('categories').select('*');
+                if (error) throw error;
+                if (data && data.length > 0) {
+                    categories = data;
+                } else {
+                    categories = [...defaultCategories];
+                }
+            } catch (err) {
+                console.warn("Erreur chargement catégories Supabase, mode local:", err);
+                categories = JSON.parse(localStorage.getItem('fourni_market_categories')) || defaultCategories;
+            }
+            renderCategories();
+            filterProducts();
+        }
+
+        async function fetchProductsFromDb() {
             try {
                 const { data, error } = await supabaseClient.from('products').select('*');
                 if (error) throw error;
@@ -1035,7 +1070,7 @@
             }
         }
 
-        function addNewCategoryPrompt() {
+        async function addNewCategoryPrompt() {
             const catName = prompt("Nom de la nouvelle catégorie :");
             if (!catName || catName.trim() === "") return;
             const catId = catName.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u030f]/g, "").replace(/\s+/g, '-');
@@ -1045,13 +1080,21 @@
                 return;
             }
 
-            categories.push({ id: catId, label: catName.trim() });
+            const newCat = { id: catId, label: catName.trim() };
+            categories.push(newCat);
+
+            try {
+                await supabaseClient.from('categories').insert([newCat]);
+            } catch (err) {
+                console.warn("Avertissement enregistrement catégorie BDD:", err);
+            }
+
             localStorage.setItem('fourni_market_categories', JSON.stringify(categories));
             renderCategories();
         }
 
-        // --- FONCTION DE RENOMMAGE DES CATÉGORIES ---
-        function editCategory(catId) {
+        // --- RENOMMER UNE CATÉGORIE ---
+        async function editCategory(catId) {
             const cat = categories.find(c => c.id === catId);
             if (!cat) return;
 
@@ -1059,6 +1102,13 @@
             if (!newLabel || newLabel.trim() === "" || newLabel.trim() === cat.label) return;
 
             cat.label = newLabel.trim();
+
+            try {
+                await supabaseClient.from('categories').update({ label: cat.label }).eq('id', catId);
+            } catch (err) {
+                console.warn("Avertissement mise à jour catégorie BDD:", err);
+            }
+
             localStorage.setItem('fourni_market_categories', JSON.stringify(categories));
             renderCategories();
             filterProducts();
@@ -1080,6 +1130,13 @@
             }
 
             categories = categories.filter(c => c.id !== catId);
+
+            try {
+                await supabaseClient.from('categories').delete().eq('id', catId);
+            } catch (err) {
+                console.warn("Avertissement suppression catégorie BDD:", err);
+            }
+
             localStorage.setItem('fourni_market_categories', JSON.stringify(categories));
 
             if (currentCategory === catId) {
@@ -1303,6 +1360,7 @@
             if(confirm("Confirmer la réinitialisation ?")) {
                 try {
                     await supabaseClient.from('products').delete().neq('id', 0);
+                    await supabaseClient.from('categories').delete().neq('id', '');
                 } catch(e) {}
                 localStorage.removeItem('fourni_market_products');
                 localStorage.removeItem('fourni_market_categories');
