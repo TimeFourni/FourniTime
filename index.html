@@ -185,7 +185,7 @@
             left: 0;
             top: 0;
             height: 100vh;
-            width: 290px;
+            width: 310px;
             background: rgba(12, 15, 23, 0.98);
             border-right: 1px solid var(--neon-cyan);
             backdrop-filter: blur(15px);
@@ -225,13 +225,15 @@
             width: 32px;
             height: 32px;
             font-size: 1.1rem;
+            cursor: pointer;
         }
 
         .cat-item-row {
             display: flex;
             align-items: center;
             gap: 0.4rem;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.6rem;
+            width: 100%;
         }
 
         .filter-btn {
@@ -239,12 +241,12 @@
             background: rgba(20, 24, 35, 0.8);
             border: 1px solid rgba(255, 255, 255, 0.1);
             color: var(--text-muted);
-            padding: 0.8rem 0.9rem;
+            padding: 0.75rem 0.8rem;
             border-radius: 6px;
             cursor: pointer;
             text-align: left;
             text-transform: uppercase;
-            font-size: 0.82rem;
+            font-size: 0.8rem;
             font-weight: 600;
             display: flex;
             align-items: center;
@@ -265,15 +267,23 @@
             color: var(--warning-amber);
         }
 
+        /* BOUTONS DE MODIFICATION ET SUPPRESSION VISIBLES EN MODE STUDIO */
         .cat-action-btn {
-            display: none;
+            display: none !important;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.2);
             color: var(--text-main);
-            padding: 0.8rem 0.5rem;
+            padding: 0.75rem 0.6rem;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        body.editable-active .cat-action-btn {
+            display: inline-flex !important;
         }
 
         .edit-cat-btn {
@@ -282,16 +292,18 @@
             background: rgba(0, 240, 255, 0.1);
         }
 
+        .edit-cat-btn:hover {
+            background: rgba(0, 240, 255, 0.3);
+        }
+
         .delete-cat-btn {
             background: rgba(255, 59, 48, 0.15);
             border-color: var(--neon-red);
             color: var(--neon-red);
         }
 
-        body.editable-active .cat-action-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .delete-cat-btn:hover {
+            background: rgba(255, 59, 48, 0.35);
         }
 
         .cart-modal {
@@ -368,6 +380,7 @@
             color: var(--neon-red);
             font-size: 0.8rem;
             padding: 0.4rem;
+            cursor: pointer;
         }
 
         .client-info-section {
@@ -473,8 +486,8 @@
             color: var(--neon-purple);
             margin-bottom: 0.75rem;
             display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .studio-actions {
@@ -487,6 +500,7 @@
             border-radius: 4px;
             font-size: 0.75rem;
             font-weight: 600;
+            cursor: pointer;
         }
 
         .add-cat-btn {
@@ -534,6 +548,7 @@
             font-weight: 600;
             text-transform: uppercase;
             margin-top: 0.5rem;
+            cursor: pointer;
         }
 
         .container {
@@ -591,6 +606,7 @@
             align-items: center;
             justify-content: center;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            cursor: pointer;
         }
 
         @media (min-width: 600px) {
@@ -627,6 +643,7 @@
             font-weight: 600;
             margin-bottom: 0.25rem;
             line-height: 1.2;
+            cursor: pointer;
         }
 
         .product-desc {
@@ -663,6 +680,7 @@
             font-weight: 600;
             width: 100%;
             text-align: center;
+            cursor: pointer;
         }
 
         .admin-card-actions {
@@ -981,7 +999,7 @@
             allRow.innerHTML = `<button class="filter-btn ${currentCategory === 'all' ? 'active' : ''}" onclick="setCategory('all', this)"><span>Tous les produits</span><span>➔</span></button>`;
             navContainer.appendChild(allRow);
 
-            // Boutons de catégories personnalisées avec Édition et Suppression
+            // Génération des boutons de catégorie + Boutons d'édition & suppression
             categories.forEach(cat => {
                 const row = document.createElement('div');
                 row.className = 'cat-item-row';
@@ -996,7 +1014,7 @@
                 navContainer.appendChild(row);
             });
 
-            // Catégorie Brouillon si le Studio est ouvert
+            // Bouton Brouillon si le Mode Studio est ouvert
             if (isEditMode) {
                 const draftRow = document.createElement('div');
                 draftRow.className = 'cat-item-row';
@@ -1004,6 +1022,7 @@
                 navContainer.appendChild(draftRow);
             }
 
+            // Met à jour la liste déroulante du Studio
             const selectContainer = document.getElementById('new-category');
             if (selectContainer) {
                 selectContainer.innerHTML = '';
@@ -1031,6 +1050,7 @@
             renderCategories();
         }
 
+        // --- FONCTION DE RENOMMAGE DES CATÉGORIES ---
         function editCategory(catId) {
             const cat = categories.find(c => c.id === catId);
             if (!cat) return;
@@ -1052,7 +1072,6 @@
                 return;
             }
 
-            // Mettre en brouillon les produits de cette catégorie
             for (let prod of products) {
                 if (prod.category === catId) {
                     prod.draft = true;
@@ -1060,7 +1079,6 @@
                 }
             }
 
-            // Supprimer la catégorie de la liste
             categories = categories.filter(c => c.id !== catId);
             localStorage.setItem('fourni_market_categories', JSON.stringify(categories));
 
